@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FetalScan AI - DICOM Viewer</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">&#9673;</span>
+    <div>
+      <div class="brand-title">FetalScan <span>AI</span></div>
+      <div class="brand-sub">Prenatal DICOM Viewer &amp; Abnormality Detection</div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <label class="btn" for="fileInput">&#8679; Upload DICOM</label>
+    <input id="fileInput" type="file" multiple accept=".dcm,.dicom,.zip,application/dicom,application/zip" hidden>
+    <button class="btn" id="demoBtn">&#9654; Load Demo Dataset</button>
+    <button class="btn primary" id="analyzeBtn" disabled>&#10024; Run AI Analysis</button>
+    <button class="btn" id="reportBtn" disabled>&#128196; Report</button>
+  </div>
+  <div class="model-badge" title="Loaded model">
+    <span class="dot"></span>{{ model_name }} v{{ model_version }}
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- LEFT PANEL -->
+  <aside class="panel left">
+    <section class="card">
+      <h3>Patient / Series</h3>
+      <table class="kv" id="metaTable">
+        <tr><td colspan="2" class="muted">No series loaded. Upload DICOM files or load the demo dataset.</td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h3>Display</h3>
+      <div class="row">
+        <label>Window center <span id="wcVal"></span></label>
+        <input type="range" id="wc" min="0" max="100" value="50">
+      </div>
+      <div class="row">
+        <label>Window width <span id="wwVal"></span></label>
+        <input type="range" id="ww" min="1" max="100" value="100">
+      </div>
+      <div class="row presets">
+        <button class="chip" data-preset="default">Default</button>
+        <button class="chip" data-preset="soft">Soft tissue</button>
+        <button class="chip" data-preset="bone">Bone</button>
+        <button class="chip" data-preset="invert">Invert</button>
+      </div>
+      <div class="row">
+        <button class="chip" id="resetViewBtn">Reset zoom / pan</button>
+        <button class="chip" id="layoutBtn">Toggle layout</button>
+      </div>
+      <p class="hint">Mouse wheel: scroll slices &middot; Drag: window/level &middot; Ctrl + wheel: zoom &middot; Right-drag: pan &middot; Double-click: maximise view</p>
+    </section>
+
+    <section class="card">
+      <h3>AI Overlay</h3>
+      <div class="row inline">
+        <label class="switch"><input type="checkbox" id="overlayToggle" checked disabled><span></span></label>
+        <span>Show probability heat-map</span>
+      </div>
+      <div class="row">
+        <label>Overlay opacity <span id="opVal">70%</span></label>
+        <input type="range" id="opacity" min="0" max="100" value="70">
+      </div>
+      <div class="legend">
+        <div class="legend-bar"></div>
+        <div class="legend-labels"><span>0.0</span><span>0.5</span><span>1.0</span></div>
+        <div class="muted small">Abnormality probability</div>
+      </div>
+    </section>
+  </aside>
+
+  <!-- VIEWERS -->
+  <section class="viewers" id="viewers">
+    <div class="view" data-axis="axial">
+      <div class="view-head" style="--c:#c62828">
+        <span>Axial</span><span class="idx" id="idx-axial">-</span>
+      </div>
+      <div class="view-body"><canvas></canvas><div class="view-overlay-text"></div></div>
+      <input type="range" class="slice-slider" min="0" max="0" value="0" disabled>
+    </div>
+    <div class="view" data-axis="coronal">
+      <div class="view-head" style="--c:#2e7d32">
+        <span>Coronal</span><span class="idx" id="idx-coronal">-</span>
+      </div>
+      <div class="view-body"><canvas></canvas><div class="view-overlay-text"></div></div>
+      <input type="range" class="slice-slider" min="0" max="0" value="0" disabled>
+    </div>
+    <div class="view" data-axis="sagittal">
+      <div class="view-head" style="--c:#f9a825">
+        <span>Sagittal</span><span class="idx" id="idx-sagittal">-</span>
+      </div>
+      <div class="view-body"><canvas></canvas><div class="view-overlay-text"></div></div>
+      <input type="range" class="slice-slider" min="0" max="0" value="0" disabled>
+    </div>
+    <div class="view summary-view">
+      <div class="view-head" style="--c:#1565c0"><span>AI Summary</span><span class="idx" id="summaryStatus">Idle</span></div>
+      <div class="view-body summary-body" id="summaryBody">
+        <div class="placeholder">
+          <div class="big">&#129504;</div>
+          <p>Load a series and click <b>Run AI Analysis</b>.<br>The U-Net model will segment suspicious regions and estimate abnormality probability.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT PANEL -->
+  <aside class="panel right">
+    <section class="card grow">
+      <h3>Findings <span class="count" id="findingCount"></span></h3>
+      <div id="findings" class="findings">
+        <p class="muted">No analysis run yet.</p>
+      </div>
+    </section>
+    <section class="card">
+      <h3>Model</h3>
+      <table class="kv">
+        <tr><td>Architecture</td><td>3D U-Net (4 levels)</td></tr>
+        <tr><td>Backbone</td><td>ResNet-34 encoder</td></tr>
+        <tr><td>Input</td><td>256 &times; 256 &times; N</td></tr>
+        <tr><td>Training set</td><td>Fetal CT/MR, 9 classes</td></tr>
+        <tr><td>Dice (val)</td><td>0.87</td></tr>
+      </table>
+    </section>
+  </aside>
+</main>
+
+<!-- Progress modal -->
+<div class="modal" id="progressModal">
+  <div class="modal-box">
+    <h2>Running inference</h2>
+    <ul class="steps" id="steps">
+      <li data-step="0">Loading volume into memory</li>
+      <li data-step="1">Pre-processing &amp; intensity normalisation</li>
+      <li data-step="2">Resampling to 256 &times; 256 isotropic grid</li>
+      <li data-step="3">U-Net forward pass (encoder / decoder)</li>
+      <li data-step="4">Post-processing: thresholding &amp; connected components</li>
+      <li data-step="5">Extracting findings &amp; generating heat-map</li>
+    </ul>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="muted small" id="progressText">0%</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  window.MODEL_NAME = "{{ model_name }}";
+</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

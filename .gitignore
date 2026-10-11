@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+
+# Runtime uploads and local datasets
+app/uploads/
+fetus-dicom/
+*.dcm
+
+# Local Python environments and tooling
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
